@@ -114,8 +114,13 @@ class Terminal:
             self.process.send_signal(signal_number)
         else:
             self.send("q")
-        self.drain(0.3)
-        self.process.wait(timeout=5)
+        # Keep reading while the child restores the screen: a slow CI runner
+        # must not block on a full PTY output buffer during shutdown.
+        deadline = time.monotonic() + 5
+        while self.process.poll() is None and time.monotonic() < deadline:
+            self.drain(0.05)
+        self.process.wait(timeout=0.1)
+        self.drain(0.05)
         assert self.process.returncode == 0, self.raw.decode(errors="replace")
         after = termios.tcgetattr(self.slave)
         before = list(self.before)
@@ -189,12 +194,15 @@ def main():
         terminal.expect("http_requests_total")
         terminal.capture("narrow")
         terminal.close()
-        terminal = Terminal([binary, "--session", str(session)], directory, "restored")
-        terminal.expect("http_requests_total")
-        terminal.capture("loaded")
-        terminal.close(signal.SIGINT)
-        terminal = Terminal([binary, "--session", str(session)], directory, "terminated")
-        terminal.close(signal.SIGTERM)
+        # Repeated exits catch races between signal delivery and cancellation.
+        for attempt in range(5):
+            for exit_signal in (signal.SIGINT, signal.SIGTERM):
+                terminal = Terminal([binary, "--session", str(session)], directory,
+                                    f"restored-{exit_signal.name}-{attempt}")
+                terminal.expect("http_requests_total")
+                if attempt == 0:
+                    terminal.capture("loaded")
+                terminal.close(exit_signal)
         terminal = None
         print(json.dumps({"result": "passed", "artifacts": str(directory), "checks": ["CLI JSON", "four panels", "label filters", "series details", "cursor", "failure recovery", "session save/load", "resize", "q/SIGINT/SIGTERM terminal restoration"]}, indent=2))
     finally:

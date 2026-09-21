@@ -66,7 +66,9 @@ func New(ctx context.Context, cfg config.Config, scraper *metrics.Scraper, demo 
 func Run(ctx context.Context, cfg config.Config, scraper *metrics.Scraper, demo bool) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	_, err := tea.NewProgram(New(ctx, cfg, scraper, demo), tea.WithContext(ctx)).Run()
+	// main owns SIGINT/SIGTERM through ctx. A second signal handler can try to
+	// send a quit message after cancellation has already stopped the event loop.
+	_, err := tea.NewProgram(New(ctx, cfg, scraper, demo), tea.WithContext(ctx), tea.WithoutSignalHandler()).Run()
 	if ctx.Err() != nil {
 		return nil
 	}
