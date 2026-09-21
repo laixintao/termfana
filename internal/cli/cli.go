@@ -21,7 +21,7 @@ import (
 	"github.com/laixintao/termfana/internal/tui"
 )
 
-var Version = "0.1.0"
+var Version = "0.1.1"
 
 const usage = `termfana — inspect a program's /metrics from your terminal
 
