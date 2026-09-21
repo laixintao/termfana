@@ -1,198 +1,202 @@
 # termfana
 
+English | [简体中文](README.zh-CN.md)
+
 [![CI](https://github.com/laixintao/termfana/actions/workflows/ci.yml/badge.svg)](https://github.com/laixintao/termfana/actions/workflows/ci.yml)
 
-在终端中直接读取程序的 `/metrics`，查看指标趋势、吞吐和延迟，用于 SSH 会话中的临时排障。
+Explore metrics in your terminal. Connect directly to an application's `/metrics` endpoint to inspect trends, throughput, and latency while debugging over SSH.
 
-一个二进制、一个 metrics URL 即可开始。程序自己定时采样，历史保存在内存中。
+One binary and one metrics URL are all you need. termfana scrapes the endpoint at a configurable interval and keeps recent history in memory.
 
-## 快速开始
+## Quick start
 
-编译需要 Go 1.26 或更新版本；编译后的二进制不依赖 Go 运行环境。
+Building requires Go 1.26 or later. The compiled binary runs without a Go installation.
 
-可以从 [GitHub Releases](https://github.com/laixintao/termfana/releases) 下载 Linux/macOS、amd64/arm64 对应的 `.tar.gz`，解压后直接运行 `./termfana`。每次发布附带 `SHA256SUMS`：Linux 用 `sha256sum --check SHA256SUMS`，macOS 用 `shasum -a 256 --check SHA256SUMS` 校验（校验全部文件需要下载四个包）。
+Download the `.tar.gz` for your platform from [GitHub Releases](https://github.com/laixintao/termfana/releases), extract it, and run `./termfana`. Releases include Linux/macOS binaries for amd64/arm64 and a `SHA256SUMS` file. Verify with `sha256sum --check SHA256SUMS` on Linux or `shasum -a 256 --check SHA256SUMS` on macOS; checking the entire manifest requires all four archives.
 
-也可以用 Go 安装：`go install github.com/laixintao/termfana/cmd/termfana@latest`。
+You can also install with Go: `go install github.com/laixintao/termfana/cmd/termfana@latest`.
+
+To build from source:
 
 ```sh
 make build
 
-# 无需连接实际程序，体验流量、延迟尖峰和计数器重置
+# Try synthetic traffic, latency spikes, and counter resets
 ./bin/termfana demo
 
-# 连接程序的完整 /metrics 地址
+# Connect to an application's full /metrics URL
 ./bin/termfana http://localhost:8080/metrics
 
-# 更快采样，保留最近 600 轮，初始显示 2 分钟
+# Scrape faster, keep 600 rounds, and start with a 2-minute window
 ./bin/termfana --interval 1s --capacity 600 --window 2m \
   http://localhost:8080/metrics
 ```
 
-启动后搜索指标，按 Enter 加入面板。用 `a` 再添加相关指标，最多同时打开 4 个面板。采集从启动时开始，因此稍后添加的指标也能查看已保留的历史。
+Search for a metric and press Enter to add a panel. Press `a` to add related metrics, with up to four panels open at once. Collection starts immediately, so metrics added later can still use the retained history.
 
-宽屏显示双列面板；80×24 终端显示当前面板，用 Tab 或数字键切换。Braille 字体显示不佳时使用 `--ascii`。
+Wide terminals show panels in two columns. At 80×24, the focused panel fills the workspace; use Tab or a number key to switch panels. Use `--ascii` if your terminal font does not render Braille charts well.
 
-## 排障操作
+## Debugging controls
 
-| 按键 | 操作 |
+| Key | Action |
 | --- | --- |
-| `a` / `/` | 打开指标浏览器 / 搜索 |
-| `Enter` | 添加指标；在看板中放大当前面板 |
-| `Tab` / `Shift+Tab` / `1`–`4` | 切换面板 |
-| `v` | 切换原值、速率或 Histogram 视图 |
-| `l` | 筛选标签：Enter 勾选，`c` 清空，Esc 返回 |
-| `g` | 查看 series 列表；Enter 查看完整标签和游标值，Space 隐藏/显示 |
-| `←` / `→` | 查看同一采样时刻，各面板共享游标 |
-| `+` / `-` | 缩放时间范围 |
-| `[` / `]` | 向前 / 向后平移时间范围 |
-| `Space` | 冻结画面 / 返回实时，后台继续采集 |
-| `r` / `Home` | 返回实时 |
-| `d` | 删除当前面板 |
-| `s` | 保存会话配置，指定已有文件时替换该文件 |
-| `i` | 浏览器中查看指标完整说明 |
-| `?` | 快捷键帮助 |
-| `q` / `Ctrl+C` | 退出并恢复终端 |
+| `a` / `/` | Open the metric browser / search |
+| `Enter` | Add a metric; maximize the focused panel in the dashboard |
+| `Tab` / `Shift+Tab` / `1`–`4` | Switch panels |
+| `v` | Switch between raw values, rates, and histogram views |
+| `l` | Filter labels: Enter to toggle, `c` to clear, Esc to return |
+| `g` | Inspect series; Enter for labels and cursor values, Space to hide/show |
+| `←` / `→` | Inspect a sample with a cursor shared across all panels |
+| `+` / `-` | Zoom the time window |
+| `[` / `]` | Pan backward / forward in time |
+| `Space` | Freeze the view / return to live mode; collection continues |
+| `r` / `Home` | Return to live mode |
+| `d` | Remove the focused panel |
+| `s` | Save session configuration; replaces the file if it already exists |
+| `i` | Show the metric's full description in the browser |
+| `?` | Show keyboard help |
+| `q` / `Ctrl+C` | Exit and restore the terminal |
 
-每个面板最多绘制 8 条曲线，底部标明显示数量。用标签筛选或隐藏其他 series，选择需要对比的曲线；`g` 中可以查看具体值和完整标签。默认每 5 秒采样，保留 360 轮，约 30 分钟；更改间隔会改变这 360 轮覆盖的时间。
+Each panel plots at most eight series and shows the displayed count in its footer. Filter labels or hide series to choose what to compare; press `g` for exact values and complete labels. Defaults are a 5-second interval and 360 retained rounds, or about 30 minutes. Changing the interval changes how much time those 360 rounds cover.
 
-## 指标计算
+## Metric calculations
 
-| 类型 | 展示方式 |
+| Type | Views |
 | --- | --- |
-| Gauge / 未声明 TYPE | 原始数值 |
-| Counter | 默认 `rate`：相邻两次采样的增量 ÷ 实际秒数；也可查看 `raw` |
-| 经典 Histogram | 默认 `p95`；可选 `p50`、`p99`、`mean`、`rate`、`raw` |
-| Summary | 已暴露的 quantile、sum、count 原值 |
+| Gauge / no declared TYPE | Raw values |
+| Counter | `rate` by default: delta between consecutive samples divided by elapsed seconds; `raw` is also available |
+| Classic histogram | `p95` by default; also `p50`, `p99`, `mean`, `rate`, and `raw` |
+| Summary | Exposed quantile, sum, and count values |
 
-- Histogram 分位数根据两轮采样的累计桶差值进行桶内线性插值，图中以 `≈` 标明估算。`mean` 是 `Δsum / Δcount`，`rate` 是 `Δcount / Δtime`。
-- Histogram 按除 `le` 外的标签分别计算；Summary 的 quantile 不做聚合或重新计算。
-- 首轮、Counter 回退、创建时间变化、断采或 series 重新出现时，派生值重新建立基线。没有新请求的 Histogram 分位数和均值显示 `N/A`，请求速率为 0。
-- 失败、缺失、`NaN`、`Inf` 和不可计算的区间保留为缺口。图形不会把缺口补零，也不会跨缺口连线。
-- 全部曲线按本地采集完成时刻对齐。端点附带的样本时间戳不用于横轴或速率计算。
-- 工具只能观察采样间发生的变化；未暴露创建时间、且重置后计数已超过上次值的 Counter，无法可靠识别这次重置。
+- Histogram quantiles use differences between consecutive cumulative bucket counts and linear interpolation within each bucket. Charts mark estimates with `≈`. `mean` is `Δsum / Δcount`; `rate` is `Δcount / Δtime`.
+- Histograms are grouped by every label except `le`. Summary quantiles are displayed as exposed, without aggregation or recalculation.
+- Derived views establish a new baseline on the first scrape, counter decreases, creation timestamp changes, failed or missing scrapes, and series reappearance. Histograms with no new observations show `N/A` for quantiles and mean, and zero for request rate.
+- Failed, missing, `NaN`, `Inf`, and otherwise uncomputable samples remain gaps. Charts do not replace gaps with zero or join lines across them.
+- All series use the local scrape completion time. Timestamps exposed by the endpoint are not used for the time axis or rate calculations.
+- Resets cannot always be detected between scrapes: if a counter has no creation timestamp and already exceeds its previous value after a reset, the reset is indistinguishable from normal growth.
 
-支持 Prometheus text 和 OpenMetrics 1.0，包括 HELP、TYPE、UNIT 及转义标签；exemplar 可被解析，但不展示。首版只计算经典 Histogram，不支持原生 Histogram、PromQL 或跨 series 聚合。
+Prometheus text and OpenMetrics 1.0 are supported, including HELP, TYPE, UNIT, and escaped labels. Exemplars are parsed but not displayed. This version supports classic histograms; native histograms, PromQL, and aggregation across series are not implemented.
 
-## 脚本与管道
+## Scripts and pipelines
 
-选项放在 URL 前面。
+Place options before the URL.
 
 ```sh
-# 列出可用指标和类型
+# List available metrics and types
 ./bin/termfana list http://localhost:8080/metrics
 
-# 指标目录输出为一个 JSON 数组
+# Emit the metric catalog as one JSON array
 ./bin/termfana list --format json http://localhost:8080/metrics
 
-# 单轮原始值
+# Read one round of raw values
 ./bin/termfana sample --metric process_resident_memory_bytes \
   http://localhost:8080/metrics
 
-# 每轮输出一个 JSON 对象；可直接使用 jq 或写文件
+# Emit one JSON object per round, suitable for jq or a file
 ./bin/termfana sample --metric http_requests_total \
   --view rate --label method=GET --label status=500 \
   --interval 1s --count 12 --format json \
   http://localhost:8080/metrics | jq .
 
-# Histogram 的 p95，以完整 family 名称指定
+# Read histogram p95 using the full family name
 ./bin/termfana sample --metric http_request_duration_seconds \
   --view p95 --count 6 --format json http://localhost:8080/metrics
 
-# 持续输出，Ctrl+C 结束
+# Stream until Ctrl+C
 ./bin/termfana sample --metric workers --count 0 --format json \
   http://localhost:8080/metrics > workers.jsonl
 ```
 
-`sample` 默认 `raw`、输出一轮。派生视图先执行一轮基线采样，再输出 `--count` 指定的轮数；两次采样间遵循 `--interval`。标签匹配为精确匹配，多个标签条件使用 AND。
+`sample` defaults to `raw` and one output round. Derived views take one baseline scrape before emitting the number of rounds requested by `--count`. Scrapes follow `--interval`. Label filters use exact matching; multiple filters are combined with AND.
 
-JSON Lines 的一轮示例：
+Example JSON Lines record:
 
 ```json
 {"timestamp":"2026-09-21T14:00:05+08:00","duration_ms":2.4,"view":"rate","status":"ok","samples":[{"metric":"http_requests_total","labels":{"method":"GET","status":"500"},"value":1.2,"status":"ok"}]}
 ```
 
-不可用数值为 `null`，sample 的 `status` 说明原因，如 `warming_up`、`reset`、`non_finite`、`no_observations`。采集失败时该轮 `status` 为 `scrape_failed`，`samples` 为空，`error` 给出原因；下轮继续采集。没有匹配标签时返回 `no_matches`。
+Unavailable values are `null`. Each sample's `status` explains why, such as `warming_up`, `reset`, `non_finite`, or `no_observations`. A failed scrape emits a record with `status: "scrape_failed"`, an empty `samples` array, and an `error` message; collection continues on the next round. No matching series produces `no_matches`.
 
-数据写 stdout，诊断写 stderr。退出码：`0` 正常结束，`1` 采集或输出失败，`2` 参数/配置错误。连续采样中出现过采集失败，最终退出码仍为 `1`。交互模式要求 TTY；重定向和管道请使用 `list` 或 `sample`。
+Data goes to stdout; diagnostics go to stderr. Exit codes are `0` for success, `1` for a collection or output failure, and `2` for invalid arguments or configuration. A streaming command returns `1` if any scrape failed during the run. Interactive mode requires a TTY; use `list` or `sample` with redirection and pipes.
 
-## 会话与接入
+## Sessions and connections
 
-按 `s` 保存面板、标签、视图、端点和采样配置，然后恢复：
+Press `s` to save panels, label filters, views, the endpoint, and scrape settings. Restore with:
 
 ```sh
 ./bin/termfana --session debug.json
 ```
 
-会话是版本化 JSON，仅包含配置，不包含采样历史。保存使用原子替换，文件权限为 `0600`。命令行显式选项覆盖会话中的对应设置。
+Sessions are versioned JSON containing configuration only; collected history stays in memory. Saves replace the file atomically and set permissions to `0600`. Explicit command-line options override session settings.
 
-无鉴权的程序只需要 URL；Bearer 和 Basic 通过环境变量提供。会话仅保存环境变量名称。
+An unauthenticated endpoint only needs a URL. Bearer tokens and Basic authentication use environment variables. Session files store the variable names only.
 
 ```sh
-# 使用已经设置的 APP_METRICS_TOKEN
+# Use an existing APP_METRICS_TOKEN environment variable
 ./bin/termfana --token-env APP_METRICS_TOKEN https://service.example/metrics
 
-# 使用已经设置的 APP_METRICS_USER / APP_METRICS_PASSWORD
+# Use existing APP_METRICS_USER / APP_METRICS_PASSWORD variables
 ./bin/termfana --username-env APP_METRICS_USER \
   --password-env APP_METRICS_PASSWORD https://service.example/metrics
 ```
 
-HTTPS 使用系统信任根；已有 SSH 端口转发可直接作为本地 URL 使用。程序不实现登录流程或自动创建 SSH 隧道。
+HTTPS uses the system trust store. An existing SSH port forward can be accessed through its local URL. termfana does not perform login flows or create SSH tunnels.
 
-默认请求超时 3 秒，不重叠采集；错误后在下一周期重试。解压后单次响应最多 16 MiB、最多 10,000 条 series，可通过 `--max-bytes`、`--max-series` 调整。超限整轮报错，避免把截断结果当作完整采样。保留历史中的 series 目录也受相同数量上限约束；标签大量变化时会提前淘汰旧历史，并在界面提示。
+The default request timeout is 3 seconds. Scrapes do not overlap, and failures are retried on the next cycle. Each response is limited to 16 MiB after decompression and 10,000 series; adjust with `--max-bytes` and `--max-series`. Exceeding a limit fails the entire scrape to avoid presenting partial data as complete. The retained series catalog uses the same series limit; rapid label churn can evict older history early, with a notice in the UI.
 
-## 开发与验证
+## Development and verification
 
 ```sh
 make build           # bin/termfana
-make check           # go test -race ./... + go vet ./...
-make smoke           # 标准库 Python 伪终端端到端测试（Linux/macOS）
-make dist            # dist/ 下的 Linux/macOS × amd64/arm64 单二进制
-make package         # 四个平台的版本化 tar.gz + SHA256SUMS
+make check           # race tests, go vet, and version consistency
+make smoke           # Python PTY end-to-end test on Linux/macOS
+make dist            # Standalone binaries for Linux/macOS × amd64/arm64
+make package         # Four versioned tar.gz archives + SHA256SUMS
 ```
 
-测试涵盖格式解析、HTTP 鉴权/超时、Counter 重置、Histogram 区间计算、内存淘汰、CLI JSON、终端尺寸和键盘流程。`make smoke` 会启动临时 localhost 服务，验证四面板、标签筛选、断采恢复、保存/恢复、窗口缩放，以及正常退出、SIGINT、SIGTERM 后的终端恢复。
+Tests cover format parsing, HTTP authentication and timeouts, counter resets, histogram interval calculations, bounded history, CLI JSON, terminal sizes, and keyboard interactions. `make smoke` starts a temporary localhost service and exercises four panels, label filters, failure recovery, session save/load, resize, and terminal restoration after normal exit, SIGINT, and SIGTERM. The smoke script uses Python's standard library; installing `pyte` also enables assertions against the rendered screen, as used in CI.
 
-需要一个可供其他命令测试的示例端点时：
+To provide a demo endpoint for other commands:
 
 ```sh
 ./bin/termfana demo --serve
-# 打印临时 loopback /metrics URL；Ctrl+C 停止
+# Prints a temporary loopback /metrics URL; Ctrl+C stops it
 ```
 
-实现按 `metrics`（采集、解析、历史、计算）、`chart`（字符绘图）、`tui`、`cli`、`config`、`demo` 分层。TUI 与 CLI 共用采集和计算核心，运行时不连接任何 Prometheus 服务。
+Code is organized into `metrics` (collection, parsing, history, calculations), `chart` (terminal plotting), `tui`, `cli`, `config`, and `demo`. The TUI and CLI share the collection and calculation core. No Prometheus server is required at runtime.
 
-## 版本与自动发布
+## Versioning and automatic releases
 
-维护者安装一次 [bump2version](https://github.com/c4urself/bump2version)，它提供 `bumpversion` 命令：
+Maintainers install [bump2version](https://github.com/c4urself/bump2version) once to get the `bumpversion` command:
 
 ```sh
 pipx install bump2version==1.0.1
 ```
 
-提交代码后，在工作区干净的分支执行：
+Commit your changes, then run from a branch with a clean working tree:
 
 ```sh
-make release PART=patch       # 例如 0.1.0 → 0.1.1；默认 patch
-# 或 make release PART=minor  # 0.1.0 → 0.2.0
-# 或 make release VERSION=0.2.0
+make release PART=patch       # For example, 0.1.0 → 0.1.1; patch is the default
+# Or: make release PART=minor # 0.1.0 → 0.2.0
+# Or: make release VERSION=0.2.0
 ```
 
-该命令调用 bumpversion，同步 `.bumpversion.cfg` 和 CLI 的版本号，创建版本 commit 与 `vX.Y.Z` annotated tag，再通过 atomic push 把当前分支和这个 tag 一起推到 `origin`。若推送失败，本地 commit/tag 会保留；按输出提示修复并重试 push，无需再次 bump。
+This calls bumpversion to update `.bumpversion.cfg` and the CLI version, creates a version commit and annotated `vX.Y.Z` tag, and atomically pushes the current branch and that tag to `origin`. If the push fails, the local commit and tag remain. Resolve the Git error and retry the push printed by the command; do not bump again.
 
-也支持直接使用 bumpversion，分开操作：
+You can also run the steps separately:
 
 ```sh
 bumpversion patch
 git push --atomic origin HEAD --follow-tags
 ```
 
-本地 bumpversion 不会访问 GitHub；tag 推送后才会触发自动发布。普通分支 push 和 PR 会执行 Linux/macOS 的 race tests、`go vet`、版本校验、发布脚本测试及真实伪终端测试。版本 tag 使用同一套测试，全部通过后构建 Linux/macOS × amd64/arm64 的安装包，再发布 GitHub Release，附带校验和及自动生成的 release notes。无需配置额外 secret，发布使用仓库自带的 `GITHUB_TOKEN`。
+A local bump does not contact GitHub; pushing the tag triggers the release. Branch pushes and pull requests run race tests, `go vet`, version checks, release automation tests, and real PTY tests on Linux and macOS. Version tags run the same tests. After every test passes, the release workflow builds Linux/macOS × amd64/arm64 archives and publishes a GitHub Release with checksums and generated release notes. No additional secrets are required; publishing uses the repository's `GITHUB_TOKEN`.
 
-版本、源码或 tag 不一致会阻止发布。当前支持稳定版 `major.minor.patch`。仅修改源码中的版本号不会发布，必须推送对应的 tag。
+A mismatch between the configured version, CLI version, and tag blocks publication. Stable `major.minor.patch` versions are supported. Editing the source version alone does not publish a release; the matching tag must be pushed.
 
-可以在 [Release workflow](https://github.com/laixintao/termfana/actions/workflows/release.yml) 对分支手动 Run workflow：测试和打包完成后生成 `release-assets` artifact，不创建正式 Release。`master` 上修改发布 workflow 或打包脚本时也会自动执行这项验证。手动运行在版本 tag 上则会发布该版本。
+Run the [Release workflow](https://github.com/laixintao/termfana/actions/workflows/release.yml) manually on a branch to test packaging. It produces a `release-assets` artifact without publishing a GitHub Release. Changes to the release workflow or packaging script on `master` also trigger this check. A manual run on a version tag publishes that version.
 
-本地验证发布脚本（只操作临时仓库）：
+To test release automation locally, using disposable repositories only:
 
 ```sh
 python3 -m pip install -r scripts/requirements-ci.txt

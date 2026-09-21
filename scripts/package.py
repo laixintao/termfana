@@ -31,6 +31,7 @@ def main():
                 with tarfile.open(archive, "w:gz") as bundle:
                     bundle.add(binary, arcname="termfana")
                     bundle.add(ROOT / "README.md", arcname="README.md")
+                    bundle.add(ROOT / "README.zh-CN.md", arcname="README.zh-CN.md")
             digest = hashlib.sha256(archive.read_bytes()).hexdigest()
             checksums.append(f"{digest}  {name}\n")
             print(name, flush=True)
