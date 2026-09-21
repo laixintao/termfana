@@ -190,7 +190,7 @@ git push --atomic origin HEAD --follow-tags
 
 版本、源码或 tag 不一致会阻止发布。当前支持稳定版 `major.minor.patch`。仅修改源码中的版本号不会发布，必须推送对应的 tag。
 
-可以在 [Release workflow](https://github.com/laixintao/termfana/actions/workflows/release.yml) 对分支手动 Run workflow：测试和打包完成后生成 `release-assets` artifact，不创建正式 Release。手动运行在版本 tag 上则会发布该版本。
+可以在 [Release workflow](https://github.com/laixintao/termfana/actions/workflows/release.yml) 对分支手动 Run workflow：测试和打包完成后生成 `release-assets` artifact，不创建正式 Release。`master` 上修改发布 workflow 或打包脚本时也会自动执行这项验证。手动运行在版本 tag 上则会发布该版本。
 
 本地验证发布脚本（只操作临时仓库）：
 

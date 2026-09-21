@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ['v[0-9]*']
+    branches: [master]
+    # Exercise the packaging pipeline when its implementation changes.
+    # GitHub ignores path filters for tag pushes, so every version still runs.
+    paths:
+      - .github/workflows/release.yml
+      - scripts/package.py
   # A manual run on a branch validates packaging without publishing a release.
   workflow_dispatch:
 
