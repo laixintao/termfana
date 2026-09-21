@@ -151,18 +151,35 @@ def main():
 
         terminal = Terminal([binary, "--interval", "100ms", "--window", "10s", url], directory, "workspace")
         terminal.expect("METRIC EXPLORER")
+        terminal.send("/request")
+        terminal.send("\x1b[B\x1b[A\x1b[B")
+        # Let cursor blinks and scrapes occur, then move the text cursor. None
+        # of these should reset the highlighted second search result.
+        terminal.drain(0.7)
+        terminal.send("\x1b[D\x1b[C")
+        terminal.capture("search-selection")
+        terminal.send("\r")
+        terminal.send("s")
+        selection = directory / "search-selection.json"
+        terminal.send("\x15\x1b[200~" + str(selection) + "\x1b[201~")
+        terminal.send("\r")
+        terminal.expect("Session saved")
+        selected = json.loads(selection.read_text())
+        assert len(selected["panels"]) == 1
+        assert selected["panels"][0]["metric"] == "request_duration_seconds", selected
+        assert selected["panels"][0]["view"] == "p95", selected
+        terminal.send("d")
+        terminal.expect("METRIC EXPLORER")
         for index, metric in enumerate(["http_requests_total", "request_duration_seconds", "memory_bytes", "workers"]):
             if index:
                 terminal.send("a")
             terminal.send("/" + metric + "\r")
-            terminal.send("\r")
             terminal.expect(metric)
         terminal.capture("four-panels")
 
         terminal.send("1l")
         terminal.expect("LABEL FILTERS")
         terminal.send('/status="500"\r')
-        terminal.send("\r")
         terminal.send("\x1b")
         terminal.send("g\r")
         terminal.expect("Labels:")
@@ -204,7 +221,7 @@ def main():
                     terminal.capture("loaded")
                 terminal.close(exit_signal)
         terminal = None
-        print(json.dumps({"result": "passed", "artifacts": str(directory), "checks": ["CLI JSON", "four panels", "label filters", "series details", "cursor", "failure recovery", "session save/load", "resize", "q/SIGINT/SIGTERM terminal restoration"]}, indent=2))
+        print(json.dumps({"result": "passed", "artifacts": str(directory), "checks": ["CLI JSON", "search navigation and selection", "four panels", "label filters", "series details", "cursor", "failure recovery", "session save/load", "resize", "q/SIGINT/SIGTERM terminal restoration"]}, indent=2))
     finally:
         if terminal and terminal.process.poll() is None:
             terminal.capture("failure")

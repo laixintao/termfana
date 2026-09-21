@@ -34,6 +34,8 @@ make build
 
 Search for a metric and press Enter to add a panel. Press `a` to add related metrics, with up to four panels open at once. Collection starts immediately, so metrics added later can still use the retained history.
 
+While searching, use ↑/↓ to select a result or PgUp/PgDn to move by a page. Enter confirms the highlighted result immediately. Esc leaves search editing while keeping the filter and selection; ←/→ move the text cursor.
+
 Wide terminals show panels in two columns. At 80×24, the focused panel fills the workspace; use Tab or a number key to switch panels. Use `--ascii` if your terminal font does not render Braille charts well.
 
 ## Debugging controls

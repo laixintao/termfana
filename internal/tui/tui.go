@@ -252,13 +252,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	default:
 		if m.inputMode != "" {
-			var cmd tea.Cmd
-			m.input, cmd = m.input.Update(msg)
-			if m.inputMode == "search" {
-				m.filter = m.input.Value()
-				m.row = 0
-			}
-			return m, cmd
+			return m.updateInput(msg)
 		}
 	}
 	return m, nil
@@ -282,18 +276,24 @@ func (m *Model) sizeInput() {
 
 func (m *Model) edit(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch key.String() {
+	case "up", "down", "pgup", "pgdown":
+		if m.inputMode == "search" {
+			return m.menuKey(key.String())
+		}
 	case "esc":
 		m.inputMode = ""
 		m.input.Blur()
 		return m, nil
 	case "enter":
 		kind, value := m.inputMode, m.input.Value()
+		if kind == "search" && len(m.items()) == 0 {
+			return m, nil
+		}
 		m.inputMode = ""
 		m.input.Blur()
 		if kind == "search" {
 			m.filter = value
-			m.row = 0
-			return m, nil
+			return m.menuKey("enter")
 		}
 		if value == "" {
 			m.message = "Enter a session file path"
@@ -302,15 +302,20 @@ func (m *Model) edit(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		cfg := m.cfg.Clone()
 		cfg.Window = m.window.String()
 		return m, func() tea.Msg { return savedMsg{path: value, err: config.Save(value, cfg)} }
-	default:
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(key)
-		if m.inputMode == "search" {
-			m.filter = m.input.Value()
-			m.row = 0
-		}
-		return m, cmd
 	}
+	return m.updateInput(key)
+}
+
+func (m *Model) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.input, cmd = m.input.Update(msg)
+	// Only a changed query invalidates the selection. Cursor movement, blink
+	// messages, and key releases must leave the highlighted result in place.
+	if m.inputMode == "search" && m.filter != m.input.Value() {
+		m.filter = m.input.Value()
+		m.row = 0
+	}
+	return m, cmd
 }
 
 type menuItem struct {
@@ -647,6 +652,9 @@ func (m *Model) View() tea.View {
 	footer := " a add   Tab focus   v view   l labels   g series   ←/→ inspect   +/- zoom   [/] pan   Space freeze   r live   s save   ? help"
 	if m.mode != "dashboard" {
 		footer = " ↑/↓ navigate   / search   Enter select/details   Space toggle   i inspect   c clear   Esc back   ? help   q quit"
+	}
+	if m.inputMode == "search" {
+		footer = " ↑/↓ navigate   PgUp/PgDn page   Enter select   Esc stop search"
 	}
 	message := " " + m.message
 	if m.inputMode != "" {

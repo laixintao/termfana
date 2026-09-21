@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/cursor"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -187,5 +188,123 @@ func TestPastedInput(t *testing.T) {
 	m.Update(tea.PasteMsg{Content: "http_requests"})
 	if m.filter != "http_requests" {
 		t.Fatal("terminal paste did not reach the text input")
+	}
+}
+
+func searchFixture(t *testing.T) *Model {
+	t.Helper()
+	m := modelFixture(t)
+	m.cfg.Panels = nil
+	m.mode = "browser"
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.Update(key('/'))
+	for _, r := range "http" {
+		m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	return m
+}
+
+func TestSearchNavigationAndSelection(t *testing.T) {
+	m := searchFixture(t)
+	if len(m.items()) != 2 {
+		t.Fatalf("expected two matching metrics, got %v", m.items())
+	}
+	for _, step := range []struct {
+		code rune
+		row  int
+	}{
+		{tea.KeyUp, 0}, {tea.KeyDown, 1}, {tea.KeyDown, 1},
+		{tea.KeyUp, 0}, {tea.KeyPgDown, 1}, {tea.KeyPgUp, 0}, {tea.KeyDown, 1},
+	} {
+		m.Update(key(step.code))
+		if m.row != step.row || m.filter != "http" || m.inputMode != "search" {
+			t.Fatalf("%s: row=%d, filter=%q, inputMode=%q", key(step.code).String(), m.row, m.filter, m.inputMode)
+		}
+	}
+	// Cursor movement, key releases, blinking, and background scrapes must not
+	// move the highlighted result back to the first row.
+	for _, msg := range []tea.Msg{
+		key(tea.KeyLeft), key(tea.KeyRight), key(tea.KeyHome), key(tea.KeyEnd),
+		tea.KeyReleaseMsg{Code: tea.KeyDown}, cursor.BlinkMsg{},
+		scrapeMsg(m.lastSuccess), tea.WindowSizeMsg{Width: 132, Height: 42},
+	} {
+		m.Update(msg)
+		m.View()
+		if m.row != 1 || m.filter != "http" {
+			t.Fatalf("%T reset search selection: row=%d, filter=%q", msg, m.row, m.filter)
+		}
+	}
+	m.Update(key(tea.KeyEnter))
+	if m.mode != "dashboard" || m.inputMode != "" || len(m.cfg.Panels) != 1 {
+		t.Fatalf("Enter did not add the selected metric: mode=%s, inputMode=%s, panels=%v", m.mode, m.inputMode, m.cfg.Panels)
+	}
+	if panel := m.cfg.Panels[0]; panel.Metric != "http_requests_total" || panel.View != "rate" {
+		t.Fatalf("Enter added the wrong metric: %+v", panel)
+	}
+}
+
+func TestSearchEditingAndEscape(t *testing.T) {
+	for _, tc := range []struct {
+		name, want string
+		msg        tea.Msg
+	}{
+		{"typing", "http_", tea.KeyPressMsg{Code: '_', Text: "_"}},
+		{"paste", "http_", tea.PasteMsg{Content: "_"}},
+		{"delete", "htt", key(tea.KeyBackspace)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := searchFixture(t)
+			m.Update(key(tea.KeyDown))
+			m.Update(tc.msg)
+			if m.filter != tc.want || m.row != 0 || m.inputMode != "search" {
+				t.Fatalf("editing must update the filter and reset selection: filter=%q row=%d inputMode=%q", m.filter, m.row, m.inputMode)
+			}
+		})
+	}
+	m := searchFixture(t)
+	m.Update(key(tea.KeyDown))
+	m.Update(key(tea.KeyEscape))
+	if m.inputMode != "" || m.filter != "http" || m.row != 1 || len(m.cfg.Panels) != 0 {
+		t.Fatal("Escape should leave search editing without selecting or resetting the result")
+	}
+	m.Update(key(tea.KeyEnter))
+	if m.cfg.Panels[0].Metric != "http_requests_total" {
+		t.Fatal("selection was lost after leaving search")
+	}
+}
+
+func TestSearchWithNoMatches(t *testing.T) {
+	m := searchFixture(t)
+	// Shortcut letters and spaces are search text while the input is focused.
+	for _, r := range "jkq /" {
+		m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	for _, code := range []rune{tea.KeyDown, tea.KeyUp, tea.KeyPgDown, tea.KeyPgUp, tea.KeyEnter} {
+		m.Update(key(code))
+	}
+	if m.filter != "httpjkq /" || m.row != 0 || m.inputMode != "search" || len(m.cfg.Panels) != 0 {
+		t.Fatal("empty search results must remain editable without selecting a metric")
+	}
+}
+
+func TestSearchInLabelAndSeriesPickers(t *testing.T) {
+	for _, mode := range []string{"labels", "series"} {
+		t.Run(mode, func(t *testing.T) {
+			m := modelFixture(t)
+			m.mode = mode
+			m.Update(key('/'))
+			m.Update(tea.PasteMsg{Content: "status"})
+			m.Update(key(tea.KeyDown))
+			m.Update(key(tea.KeyEnter))
+			if m.inputMode != "" {
+				t.Fatal("Enter should finish editing the search")
+			}
+			if mode == "labels" && m.cfg.Panels[0].Labels["status"] != "500" {
+				t.Fatal("Enter should toggle the highlighted label")
+			}
+			if mode == "series" && (m.mode != "detail" || !strings.Contains(m.detail, "500")) {
+				t.Fatal("Enter should inspect the highlighted series")
+			}
+		})
 	}
 }
