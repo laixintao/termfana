@@ -1,4 +1,4 @@
-module termfana
+module github.com/laixintao/termfana
 
 go 1.26.0
 

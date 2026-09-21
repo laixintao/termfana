@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"termfana/internal/metrics"
+	"github.com/laixintao/termfana/internal/metrics"
 )
 
 func TestSessionRoundTrip(t *testing.T) {

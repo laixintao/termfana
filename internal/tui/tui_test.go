@@ -13,8 +13,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"termfana/internal/config"
-	"termfana/internal/metrics"
+	"github.com/laixintao/termfana/internal/config"
+	"github.com/laixintao/termfana/internal/metrics"
 )
 
 func modelFixture(t *testing.T) *Model {

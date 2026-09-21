@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"termfana/internal/cli"
+	"github.com/laixintao/termfana/internal/cli"
 )
 
 func main() {

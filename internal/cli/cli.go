@@ -15,13 +15,13 @@ import (
 
 	"golang.org/x/term"
 
-	"termfana/internal/config"
-	"termfana/internal/demo"
-	"termfana/internal/metrics"
-	"termfana/internal/tui"
+	"github.com/laixintao/termfana/internal/config"
+	"github.com/laixintao/termfana/internal/demo"
+	"github.com/laixintao/termfana/internal/metrics"
+	"github.com/laixintao/termfana/internal/tui"
 )
 
-var Version = "0.1.0-dev"
+var Version = "0.1.0"
 
 const usage = `termfana — inspect a program's /metrics from your terminal
 

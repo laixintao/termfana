@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"termfana/internal/chart"
-	"termfana/internal/metrics"
+	"github.com/laixintao/termfana/internal/chart"
+	"github.com/laixintao/termfana/internal/metrics"
 )
 
 type panelData struct {

@@ -13,9 +13,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"termfana/internal/chart"
-	"termfana/internal/config"
-	"termfana/internal/metrics"
+	"github.com/laixintao/termfana/internal/chart"
+	"github.com/laixintao/termfana/internal/config"
+	"github.com/laixintao/termfana/internal/metrics"
 )
 
 var (

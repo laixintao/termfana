@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"termfana/internal/metrics"
+	"github.com/laixintao/termfana/internal/metrics"
 )
 
 type Config struct {

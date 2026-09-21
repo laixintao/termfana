@@ -1,5 +1,7 @@
 # termfana
 
+[![CI](https://github.com/laixintao/termfana/actions/workflows/ci.yml/badge.svg)](https://github.com/laixintao/termfana/actions/workflows/ci.yml)
+
 在终端中直接读取程序的 `/metrics`，查看指标趋势、吞吐和延迟，用于 SSH 会话中的临时排障。
 
 一个二进制、一个 metrics URL 即可开始。程序自己定时采样，历史保存在内存中。
@@ -7,6 +9,10 @@
 ## 快速开始
 
 编译需要 Go 1.26 或更新版本；编译后的二进制不依赖 Go 运行环境。
+
+可以从 [GitHub Releases](https://github.com/laixintao/termfana/releases) 下载 Linux/macOS、amd64/arm64 对应的 `.tar.gz`，解压后直接运行 `./termfana`。每次发布附带 `SHA256SUMS`：Linux 用 `sha256sum --check SHA256SUMS`，macOS 用 `shasum -a 256 --check SHA256SUMS` 校验（校验全部文件需要下载四个包）。
+
+也可以用 Go 安装：`go install github.com/laixintao/termfana/cmd/termfana@latest`。
 
 ```sh
 make build
@@ -141,6 +147,7 @@ make build           # bin/termfana
 make check           # go test -race ./... + go vet ./...
 make smoke           # 标准库 Python 伪终端端到端测试（Linux/macOS）
 make dist            # dist/ 下的 Linux/macOS × amd64/arm64 单二进制
+make package         # 四个平台的版本化 tar.gz + SHA256SUMS
 ```
 
 测试涵盖格式解析、HTTP 鉴权/超时、Counter 重置、Histogram 区间计算、内存淘汰、CLI JSON、终端尺寸和键盘流程。`make smoke` 会启动临时 localhost 服务，验证四面板、标签筛选、断采恢复、保存/恢复、窗口缩放，以及正常退出、SIGINT、SIGTERM 后的终端恢复。
@@ -153,3 +160,41 @@ make dist            # dist/ 下的 Linux/macOS × amd64/arm64 单二进制
 ```
 
 实现按 `metrics`（采集、解析、历史、计算）、`chart`（字符绘图）、`tui`、`cli`、`config`、`demo` 分层。TUI 与 CLI 共用采集和计算核心，运行时不连接任何 Prometheus 服务。
+
+## 版本与自动发布
+
+维护者安装一次 [bump2version](https://github.com/c4urself/bump2version)，它提供 `bumpversion` 命令：
+
+```sh
+pipx install bump2version==1.0.1
+```
+
+提交代码后，在工作区干净的分支执行：
+
+```sh
+make release PART=patch       # 例如 0.1.0 → 0.1.1；默认 patch
+# 或 make release PART=minor  # 0.1.0 → 0.2.0
+# 或 make release VERSION=0.2.0
+```
+
+该命令调用 bumpversion，同步 `.bumpversion.cfg` 和 CLI 的版本号，创建版本 commit 与 `vX.Y.Z` annotated tag，再通过 atomic push 把当前分支和这个 tag 一起推到 `origin`。若推送失败，本地 commit/tag 会保留；按输出提示修复并重试 push，无需再次 bump。
+
+也支持直接使用 bumpversion，分开操作：
+
+```sh
+bumpversion patch
+git push --atomic origin HEAD --follow-tags
+```
+
+本地 bumpversion 不会访问 GitHub；tag 推送后才会触发自动发布。普通分支 push 和 PR 会执行 Linux/macOS 的 race tests、`go vet`、版本校验、发布脚本测试及真实伪终端测试。版本 tag 使用同一套测试，全部通过后构建 Linux/macOS × amd64/arm64 的安装包，再发布 GitHub Release，附带校验和及自动生成的 release notes。无需配置额外 secret，发布使用仓库自带的 `GITHUB_TOKEN`。
+
+版本、源码或 tag 不一致会阻止发布。当前支持稳定版 `major.minor.patch`。仅修改源码中的版本号不会发布，必须推送对应的 tag。
+
+可以在 [Release workflow](https://github.com/laixintao/termfana/actions/workflows/release.yml) 对分支手动 Run workflow：测试和打包完成后生成 `release-assets` artifact，不创建正式 Release。手动运行在版本 tag 上则会发布该版本。
+
+本地验证发布脚本（只操作临时仓库）：
+
+```sh
+python3 -m pip install -r scripts/requirements-ci.txt
+make release-test
+```

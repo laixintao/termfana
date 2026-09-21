@@ -1,6 +1,8 @@
 GO ?= go
+PYTHON ?= python3
+PART ?= patch
 
-.PHONY: build demo test vet check smoke dist
+.PHONY: build demo test vet check smoke dist package version-check release release-test
 
 build:
 	@mkdir -p bin
@@ -15,10 +17,22 @@ test:
 vet:
 	$(GO) vet ./...
 
-check: test vet
+check: test vet version-check
+
+version-check:
+	$(PYTHON) scripts/version.py
+
+release-test:
+	$(PYTHON) -m unittest discover -s scripts -p 'test_*.py' -v
 
 smoke: build
-	python3 scripts/pty_smoke.py
+	$(PYTHON) scripts/pty_smoke.py
+
+package:
+	GO="$(GO)" $(PYTHON) scripts/package.py
+
+release:
+	$(PYTHON) scripts/release.py "$(PART)" $(if $(VERSION),--new-version "$(VERSION)")
 
 dist:
 	@mkdir -p dist
