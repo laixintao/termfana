@@ -8,6 +8,8 @@ Explore metrics in your terminal. Connect directly to an application's `/metrics
 
 One binary and one metrics URL are all you need. termfana scrapes the endpoint at a configurable interval and keeps recent history in memory.
 
+![termfana demo](doc/termfana-demo.jpg)
+
 ## Quick start
 
 Building requires Go 1.26 or later. The compiled binary runs without a Go installation.

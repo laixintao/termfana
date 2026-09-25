@@ -8,6 +8,8 @@
 
 一个二进制、一个 metrics URL 即可开始。程序自己定时采样，历史保存在内存中。
 
+![termfana 演示截图](doc/termfana-demo.jpg)
+
 ## 快速开始
 
 编译需要 Go 1.26 或更新版本；编译后的二进制不依赖 Go 运行环境。
